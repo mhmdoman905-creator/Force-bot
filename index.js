@@ -2,8 +2,10 @@ const TelegramBot = require('node-telegram-bot-api');
 const TOKEN = process.env.BOT_TOKEN;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 const CHANNEL_USERNAME = process.env.CHANNEL_USERNAME;
+const ADMIN_ID = process.env.ADMIN_ID;
 const bot = new TelegramBot(TOKEN, { polling: true });
 console.log('Force Sub jalan...');
+
 async function isJoined(userId) {
   try {
     const m = await bot.getChatMember(CHANNEL_ID, userId);
@@ -32,4 +34,25 @@ bot.onText(/\/menu/, async (msg) => {
   const joined = await isJoined(msg.from.id);
   if(!joined) return bot.sendMessage(msg.chat.id, `Join dulu ${CHANNEL_USERNAME}`, joinKeyboard());
   bot.sendMessage(msg.chat.id, `🛒 *KATALOG*\n\n1. Akun Premium - 15k\n2. Followers - 10k`, { parse_mode: 'Markdown' });
+});
+
+// === NOTIF JOIN / KELUAR CHANNEL ===
+bot.on('chat_member', async (update) => {
+  try {
+    if (String(update.chat.id) !== String(CHANNEL_ID)) return;
+    const user = update.new_chat_member.user;
+    const oldStatus = update.old_chat_member.status;
+    const newStatus = update.new_chat_member.status;
+    const name = user.username ? '@' + user.username : user.first_name;
+    const id = user.id;
+
+    // BARU JOIN
+    if ((oldStatus === 'left' || oldStatus === 'kicked') && (newStatus === 'member' || newStatus === 'administrator')) {
+      if (ADMIN_ID) bot.sendMessage(ADMIN_ID, `🟢 *MEMBER BARU JOIN*\n\n👤 ${name}\n🆔 \`${id}\`\n📢 Channel: ${CHANNEL_USERNAME}`, { parse_mode: 'Markdown' });
+    }
+    // KELUAR / DIKICK
+    if ((newStatus === 'left' || newStatus === 'kicked') && (oldStatus === 'member' || oldStatus === 'administrator')) {
+      if (ADMIN_ID) bot.sendMessage(ADMIN_ID, `🔴 *MEMBER KELUAR*\n\n👤 ${name}\n🆔 \`${id}\`\n📢 Channel: ${CHANNEL_USERNAME}`, { parse_mode: 'Markdown' });
+    }
+  } catch(e){ console.log('notif error', e.message); }
 });
